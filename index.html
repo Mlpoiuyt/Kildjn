@@ -6,7 +6,6 @@
 <title>Laser Turret Control</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
   body {
     background: #0a0a0f;
     color: #e0e0e0;
@@ -14,7 +13,6 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
-
   #header {
     display: flex;
     align-items: center;
@@ -23,265 +21,74 @@
     background: #0d0d14;
     border-bottom: 1px solid #1a1a2e;
   }
-
-  #header h1 {
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: #ff3c3c;
-  }
-
-  #status-dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: #333;
-    display: inline-block;
-    margin-right: 8px;
-    transition: background 0.3s;
-  }
+  #header h1 { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #ff3c3c; }
+  #status-dot { width: 10px; height: 10px; border-radius: 50%; background: #333; display: inline-block; margin-right: 8px; transition: background 0.3s; }
   #status-dot.connected { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
   #status-dot.tracking  { background: #ff3c3c; box-shadow: 0 0 8px #ff3c3c; }
   #status-dot.error     { background: #ff8800; }
-
   #status-label { font-size: 11px; color: #666; letter-spacing: 1px; }
-
-  /* Setup panel */
-  #setup-panel {
-    padding: 16px;
-    background: #0d0d14;
-    border-bottom: 1px solid #1a1a2e;
-  }
-
-  .field-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .field-row label {
-    font-size: 11px;
-    color: #666;
-    letter-spacing: 1px;
-    min-width: 70px;
-  }
-
+  #setup-panel { padding: 16px; background: #0d0d14; border-bottom: 1px solid #1a1a2e; }
+  .field-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .field-row label { font-size: 11px; color: #666; letter-spacing: 1px; min-width: 70px; }
   .field-row input {
-    flex: 1;
-    background: #111120;
-    border: 1px solid #222240;
-    color: #e0e0e0;
-    padding: 8px 10px;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    border-radius: 4px;
-    outline: none;
+    flex: 1; background: #111120; border: 1px solid #222240; color: #e0e0e0;
+    padding: 8px 10px; font-family: 'Courier New', monospace; font-size: 13px; border-radius: 4px; outline: none;
   }
-
   .field-row input:focus { border-color: #ff3c3c; }
-
   #connect-btn {
-    width: 100%;
-    padding: 10px;
-    background: #ff3c3c;
-    color: #0a0a0f;
-    border: none;
-    font-family: 'Courier New', monospace;
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s, opacity 0.2s;
+    width: 100%; padding: 10px; background: #ff3c3c; color: #0a0a0f; border: none;
+    font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px;
+    letter-spacing: 2px; text-transform: uppercase; border-radius: 4px; cursor: pointer; transition: background 0.2s, opacity 0.2s;
   }
   #connect-btn:hover { background: #ff6060; }
   #connect-btn:disabled { opacity: 0.4; cursor: default; }
-
-  /* Camera + canvas */
-  #viewport {
-    position: relative;
-    width: 100%;
-    background: #000;
-  }
-
+  #viewport { position: relative; width: 100%; background: #000; }
   #camera { width: 100%; display: block; transform: scaleX(-1); }
-  #overlay {
-    position: absolute; top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    transform: scaleX(-1);
-  }
-
-  /* HUD crosshair */
-  #crosshair {
-    position: absolute;
-    width: 24px; height: 24px;
-    pointer-events: none;
-    transform: translate(-50%, -50%);
-    display: none;
-  }
-  #crosshair::before, #crosshair::after {
-    content: '';
-    position: absolute;
-    background: #ff3c3c;
-  }
+  #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; transform: scaleX(-1); }
+  #crosshair { position: absolute; width: 24px; height: 24px; pointer-events: none; transform: translate(-50%, -50%); display: none; }
+  #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #ff3c3c; }
   #crosshair::before { width: 2px; height: 100%; left: 50%; top: 0; transform: translateX(-50%); }
   #crosshair::after  { width: 100%; height: 2px; top: 50%; left: 0; transform: translateY(-50%); }
-
-  /* Info bar */
-  #infobar {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1px;
-    background: #1a1a2e;
-    border-top: 1px solid #1a1a2e;
-  }
-
-  .info-cell {
-    background: #0d0d14;
-    padding: 10px 6px;
-    text-align: center;
-  }
-
-  .info-cell .val {
-    font-size: 18px;
-    font-weight: 700;
-    color: #ff3c3c;
-    display: block;
-    line-height: 1;
-  }
-
-  .info-cell .lbl {
-    font-size: 9px;
-    color: #444;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-top: 3px;
-    display: block;
-  }
-
-  /* Controls */
-  #controls {
-    padding: 14px 16px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .ctrl-card {
-    background: #0d0d14;
-    border: 1px solid #1a1a2e;
-    border-radius: 6px;
-    padding: 12px;
-  }
-
-  .ctrl-card h3 {
-    font-size: 9px;
-    color: #444;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-
-  .slider-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
-  .slider-row label {
-    font-size: 10px;
-    color: #666;
-    min-width: 16px;
-  }
-
-  .slider-row input[type=range] {
-    flex: 1;
-    accent-color: #ff3c3c;
-    height: 3px;
-  }
-
-  .slider-row span {
-    font-size: 11px;
-    color: #e0e0e0;
-    min-width: 28px;
-    text-align: right;
-  }
-
+  #infobar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: #1a1a2e; border-top: 1px solid #1a1a2e; }
+  .info-cell { background: #0d0d14; padding: 10px 6px; text-align: center; }
+  .info-cell .val { font-size: 18px; font-weight: 700; color: #ff3c3c; display: block; line-height: 1; }
+  .info-cell .lbl { font-size: 9px; color: #444; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; display: block; }
+  #controls { padding: 14px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ctrl-card { background: #0d0d14; border: 1px solid #1a1a2e; border-radius: 6px; padding: 12px; }
+  .ctrl-card h3 { font-size: 9px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .slider-row label { font-size: 10px; color: #666; min-width: 16px; }
+  .slider-row input[type=range] { flex: 1; accent-color: #ff3c3c; height: 3px; }
+  .slider-row span { font-size: 11px; color: #e0e0e0; min-width: 28px; text-align: right; }
   #laser-toggle {
-    width: 100%;
-    padding: 9px;
-    background: #111120;
-    border: 1px solid #ff3c3c;
-    color: #ff3c3c;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 4px;
+    width: 100%; padding: 9px; background: #111120; border: 1px solid #ff3c3c; color: #ff3c3c;
+    font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    border-radius: 4px; cursor: pointer; transition: all 0.2s; margin-top: 4px;
   }
-
-  #laser-toggle.on {
-    background: #ff3c3c;
-    color: #0a0a0f;
-  }
-
+  #laser-toggle.on { background: #ff3c3c; color: #0a0a0f; }
   #start-btn {
-    grid-column: span 2;
-    padding: 13px;
-    background: #111120;
-    border: 1px solid #333360;
-    color: #8888cc;
-    font-family: 'Courier New', monospace;
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
+    grid-column: span 2; padding: 13px; background: #111120; border: 1px solid #333360; color: #8888cc;
+    font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px;
+    letter-spacing: 2px; text-transform: uppercase; border-radius: 4px; cursor: pointer; transition: all 0.2s;
   }
-
-  #start-btn.active {
-    background: #ff3c3c22;
-    border-color: #ff3c3c;
-    color: #ff3c3c;
-  }
-
+  #start-btn.active { background: #ff3c3c22; border-color: #ff3c3c; color: #ff3c3c; }
   #log {
-    margin: 0 16px 16px;
-    background: #0d0d14;
-    border: 1px solid #1a1a2e;
-    border-radius: 6px;
-    padding: 10px;
-    font-size: 10px;
-    color: #444;
-    height: 60px;
-    overflow-y: auto;
-    line-height: 1.6;
+    margin: 0 16px 16px; background: #0d0d14; border: 1px solid #1a1a2e;
+    border-radius: 6px; padding: 10px; font-size: 10px; color: #444; height: 70px; overflow-y: auto; line-height: 1.6;
   }
-
   #log .ok  { color: #00ff88; }
   #log .err { color: #ff8800; }
   #log .inf { color: #6666cc; }
-
-  /* loading overlay */
   #loading {
-    position: absolute; inset: 0;
-    background: #0a0a0fcc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    color: #666;
-    letter-spacing: 2px;
+    position: absolute; inset: 0; background: #0a0a0fcc;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 11px; color: #666; letter-spacing: 2px; gap: 10px;
   }
+  #loading .spinner {
+    width: 28px; height: 28px; border: 2px solid #222; border-top-color: #ff3c3c;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -310,7 +117,10 @@
   <video id="camera" autoplay playsinline muted></video>
   <canvas id="overlay"></canvas>
   <div id="crosshair"></div>
-  <div id="loading">INITIALIZING MEDIAPIPE…</div>
+  <div id="loading">
+    <div class="spinner"></div>
+    <span id="loading-text">LOADING HAND TRACKING…</span>
+  </div>
 </div>
 
 <div id="infobar">
@@ -330,17 +140,16 @@
     </div>
     <div class="slider-row">
       <label>Y</label>
-      <input type="range" id="range-y" min="10" max="170" value="90" oninput="updateRanges()">
-      <span id="lbl-ry">90°</span>
+      <input type="range" id="range-y" min="10" max="90" value="60" oninput="updateRanges()">
+      <span id="lbl-ry">60°</span>
     </div>
   </div>
-
   <div class="ctrl-card">
     <h3>Tracking</h3>
     <div class="slider-row">
       <label>Smooth</label>
-      <input type="range" id="smooth" min="1" max="10" value="5" oninput="updateSmooth()">
-      <span id="lbl-sm">5</span>
+      <input type="range" id="smooth" min="1" max="10" value="4" oninput="updateSmooth()">
+      <span id="lbl-sm">4</span>
     </div>
     <div class="slider-row">
       <label>Point</label>
@@ -353,35 +162,37 @@
     </div>
     <button id="laser-toggle" onclick="toggleLaser()">LASER ON</button>
   </div>
-
   <button id="start-btn" onclick="toggleTracking()">▶ START TRACKING</button>
 </div>
 
 <div id="log"></div>
 
-<!-- MediaPipe via CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.10.9/camera_utils/camera_utils.js" crossorigin></script>
+<!-- MediaPipe via jsDelivr (most reliable CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let hands = null;
-let cameraStream = null;
+let handsModel = null;
+let mpCamera = null;
 let tracking = false;
 let laserOn = true;
 let connected = false;
 
 let smoothX = 90, smoothY = 45;
-let smoothFactor = 0.3;
+let smoothFactor = 0.4;
 let sentCount = 0;
 let lastSendTime = 0;
-let sendInterval = 50; // ms between HTTP sends
+const SEND_INTERVAL = 50;
 
 let frameCount = 0, lastFpsTime = Date.now();
-let rangeX = 170, rangeY = 90;
+let rangeX = 170, rangeY = 60;
 
-const video   = document.getElementById('camera');
-const canvas  = document.getElementById('overlay');
-const ctx     = canvas.getContext('2d');
-const cross   = document.getElementById('crosshair');
+const video  = document.getElementById('camera');
+const canvas = document.getElementById('overlay');
+const ctx    = canvas.getContext('2d');
+const cross  = document.getElementById('crosshair');
 
 // ── Logging ───────────────────────────────────────────────────────────────────
 function log(msg, type='inf') {
@@ -391,13 +202,11 @@ function log(msg, type='inf') {
   line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
   el.appendChild(line);
   el.scrollTop = el.scrollHeight;
-  if (el.children.length > 40) el.removeChild(el.firstChild);
+  if (el.children.length > 50) el.removeChild(el.firstChild);
 }
 
-// ── UI helpers ─────────────────────────────────────────────────────────────────
 function setStatus(state, label) {
-  const dot = document.getElementById('status-dot');
-  dot.className = state;
+  document.getElementById('status-dot').className = state;
   document.getElementById('status-label').textContent = label;
 }
 
@@ -433,29 +242,26 @@ async function testConnection() {
   const btn = document.getElementById('connect-btn');
   btn.disabled = true;
   btn.textContent = 'TESTING…';
-  log('Testing connection to ESP8266…');
+  log('Testing connection to ESP32…');
   try {
-    const r = await fetch(getBaseUrl() + '/ping', { method: 'GET', signal: AbortSignal.timeout(3000) });
+    const r = await fetch(getBaseUrl() + '/ping', { signal: AbortSignal.timeout(3000) });
     if (r.ok) {
       connected = true;
       setStatus('connected', 'CONNECTED');
-      log('ESP8266 responded OK!', 'ok');
+      log('ESP32 responded OK!', 'ok');
       btn.textContent = '✓ CONNECTED';
-    } else {
-      throw new Error('HTTP ' + r.status);
-    }
+    } else { throw new Error('HTTP ' + r.status); }
   } catch(e) {
-    // Try /move as fallback ping
     try {
       await fetch(getBaseUrl() + '/move?x=90&y=45&laser=1', { signal: AbortSignal.timeout(3000) });
       connected = true;
       setStatus('connected', 'CONNECTED');
-      log('ESP8266 connected via /move', 'ok');
+      log('ESP32 connected!', 'ok');
       btn.textContent = '✓ CONNECTED';
     } catch(e2) {
       connected = false;
       setStatus('error', 'NO RESPONSE');
-      log('Cannot reach ESP8266: ' + e2.message, 'err');
+      log('Cannot reach ESP32: check IP and WiFi', 'err');
       btn.textContent = 'RETRY';
     }
   }
@@ -465,52 +271,47 @@ async function testConnection() {
 async function sendCommand(x, y, laser) {
   if (!connected) return;
   const now = Date.now();
-  if (now - lastSendTime < sendInterval) return;
+  if (now - lastSendTime < SEND_INTERVAL) return;
   lastSendTime = now;
-  const url = `${getBaseUrl()}/move?x=${x}&y=${y}&laser=${laser ? 1 : 0}`;
   try {
-    await fetch(url, { signal: AbortSignal.timeout(200) });
+    await fetch(`${getBaseUrl()}/move?x=${x}&y=${y}&laser=${laser?1:0}`, { signal: AbortSignal.timeout(200) });
     sentCount++;
     document.getElementById('val-sent').textContent = sentCount;
-  } catch(e) {
-    // silent fail on individual frames
-  }
+  } catch(e) { /* silent */ }
 }
 
-// ── MediaPipe Hands ────────────────────────────────────────────────────────────
-async function initMediaPipe() {
-  log('Loading MediaPipe Hands…');
-  try {
-    // Dynamically load MediaPipe Hands
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.10.9/hands/hands.js');
-    
-    hands = new Hands({
-      locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/mediapipe/0.10.9/hands/${file}`
-    });
+// ── MediaPipe init ────────────────────────────────────────────────────────────
+function initMediaPipe() {
+  log('Initializing hand tracking…');
 
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 0,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.6,
-    });
+  // Wait for scripts to load
+  if (typeof Hands === 'undefined') {
+    document.getElementById('loading-text').textContent = 'FAILED — Check internet connection';
+    document.querySelector('.spinner').style.display = 'none';
+    log('MediaPipe failed to load. Check your internet.', 'err');
+    return;
+  }
 
-    hands.onResults(onResults);
-    log('MediaPipe ready ✓', 'ok');
+  handsModel = new Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  });
+
+  handsModel.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 0,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.6,
+  });
+
+  handsModel.onResults(onResults);
+
+  handsModel.initialize().then(() => {
     document.getElementById('loading').style.display = 'none';
-  } catch(e) {
-    log('MediaPipe load failed: ' + e.message, 'err');
-    document.getElementById('loading').textContent = 'FAILED TO LOAD — check internet';
-  }
-}
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
+    log('Hand tracking ready ✓', 'ok');
+  }).catch(err => {
+    document.getElementById('loading-text').textContent = 'FAILED TO INITIALIZE';
+    document.querySelector('.spinner').style.display = 'none';
+    log('Init error: ' + err, 'err');
   });
 }
 
@@ -519,59 +320,63 @@ async function toggleTracking() {
   const btn = document.getElementById('start-btn');
 
   if (!tracking) {
-    // Start camera
+    if (!handsModel) { log('Hand tracking not ready yet', 'err'); return; }
     try {
-      cameraStream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
       });
-      video.srcObject = cameraStream;
+      video.srcObject = stream;
       await new Promise(r => video.onloadedmetadata = r);
-
       canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
 
+      mpCamera = new Camera(video, {
+        onFrame: async () => {
+          if (!tracking) return;
+          await handsModel.send({ image: video });
+          frameCount++;
+          const now = Date.now();
+          if (now - lastFpsTime >= 1000) {
+            document.getElementById('val-fps').textContent = frameCount;
+            frameCount = 0;
+            lastFpsTime = now;
+          }
+        },
+        width: 640, height: 480
+      });
+
+      mpCamera.start();
       tracking = true;
       btn.textContent = '■ STOP TRACKING';
       btn.className = 'active';
       setStatus('tracking', 'TRACKING');
-      log('Camera started, tracking…', 'ok');
-      requestAnimationFrame(processFrame);
+      log('Camera started ✓', 'ok');
     } catch(e) {
       log('Camera error: ' + e.message, 'err');
     }
   } else {
     tracking = false;
-    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    if (mpCamera) { mpCamera.stop(); mpCamera = null; }
+    if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     cross.style.display = 'none';
     btn.textContent = '▶ START TRACKING';
     btn.className = '';
-    setStatus('connected', connected ? 'CONNECTED' : 'OFFLINE');
+    setStatus(connected ? 'connected' : '', connected ? 'CONNECTED' : 'OFFLINE');
     log('Tracking stopped');
   }
 }
 
-// ── Frame loop ─────────────────────────────────────────────────────────────────
-async function processFrame() {
-  if (!tracking) return;
-
-  if (hands && video.readyState === 4) {
-    await hands.send({ image: video });
-  }
-
-  // FPS counter
-  frameCount++;
-  const now = Date.now();
-  if (now - lastFpsTime >= 1000) {
-    document.getElementById('val-fps').textContent = frameCount;
-    frameCount = 0;
-    lastFpsTime = now;
-  }
-
-  requestAnimationFrame(processFrame);
-}
-
 // ── Hand results ───────────────────────────────────────────────────────────────
+const CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],
+  [13,17],[17,18],[18,19],[19,20],
+  [0,17]
+];
+
 function onResults(results) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -580,40 +385,48 @@ function onResults(results) {
     return;
   }
 
-  const landmarks = results.multiHandLandmarks[0];
-  const pointIdx  = parseInt(document.getElementById('finger-select').value);
-  const tip       = landmarks[pointIdx];
+  const lm  = results.multiHandLandmarks[0];
+  const idx = parseInt(document.getElementById('finger-select').value);
+  const tip = lm[idx];
 
   // Draw skeleton
-  drawSkeleton(landmarks);
+  ctx.strokeStyle = 'rgba(255,60,60,0.4)';
+  ctx.lineWidth = 1.5;
+  for (const [a,b] of CONNECTIONS) {
+    ctx.beginPath();
+    ctx.moveTo(lm[a].x * canvas.width, lm[a].y * canvas.height);
+    ctx.lineTo(lm[b].x * canvas.width, lm[b].y * canvas.height);
+    ctx.stroke();
+  }
+  for (const p of lm) {
+    ctx.beginPath();
+    ctx.arc(p.x * canvas.width, p.y * canvas.height, 3, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,60,60,0.6)';
+    ctx.fill();
+  }
 
-  // Highlight target point
+  // Target dot
   const px = tip.x * canvas.width;
   const py = tip.y * canvas.height;
-
   ctx.beginPath();
-  ctx.arc(px, py, 10, 0, Math.PI * 2);
+  ctx.arc(px, py, 10, 0, Math.PI*2);
   ctx.strokeStyle = '#ff3c3c';
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(px, py, 3, 0, Math.PI * 2);
+  ctx.arc(px, py, 3, 0, Math.PI*2);
   ctx.fillStyle = '#ff3c3c';
   ctx.fill();
 
-  // Move crosshair (mirrored because video is mirrored via CSS)
+  // Crosshair position (accounting for CSS mirror)
   const vRect = video.getBoundingClientRect();
-  const mirroredX = (1 - tip.x) * vRect.width + vRect.left;
-  const absY = tip.y * vRect.height + vRect.top;
-  cross.style.left = mirroredX + 'px';
-  cross.style.top  = absY + 'px';
+  cross.style.left = ((1 - tip.x) * vRect.width + vRect.left) + 'px';
+  cross.style.top  = (tip.y * vRect.height + vRect.top) + 'px';
   cross.style.display = 'block';
 
-  // Map to servo angles with smoothing
-  // tip.x: 0=left edge, 1=right edge → servo X: rangeX/2 left, rangeX/2 right
-  const targetX = (1 - tip.x) * rangeX;           // mirror for natural feel
-  const targetY = tip.y * rangeY + (90 - rangeY/2); // center vertically
-
+  // Map to servo angles
+  const targetX = (1 - tip.x) * rangeX;
+  const targetY = tip.y * rangeY + (90 - rangeY / 2);
   smoothX += (targetX - smoothX) * smoothFactor;
   smoothY += (targetY - smoothY) * smoothFactor;
 
@@ -622,92 +435,15 @@ function onResults(results) {
 
   document.getElementById('val-sx').textContent = sx;
   document.getElementById('val-sy').textContent = sy;
-
   sendCommand(sx, sy, laserOn);
 }
 
-// ── Skeleton drawing ───────────────────────────────────────────────────────────
-const CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],       // thumb
-  [0,5],[5,6],[6,7],[7,8],       // index
-  [5,9],[9,10],[10,11],[11,12],  // middle
-  [9,13],[13,14],[14,15],[15,16],// ring
-  [13,17],[17,18],[18,19],[19,20],// pinky
-  [0,17]
-];
-
-function drawSkeleton(lm) {
-  ctx.strokeStyle = 'rgba(255,60,60,0.35)';
-  ctx.lineWidth = 1.5;
-  for (const [a,b] of CONNECTIONS) {
-    ctx.beginPath();
-    ctx.moveTo(lm[a].x * canvas.width, lm[a].y * canvas.height);
-    ctx.lineTo(lm[b].x * canvas.width, lm[b].y * canvas.height);
-    ctx.stroke();
-  }
-  // dots
-  for (const p of lm) {
-    ctx.beginPath();
-    ctx.arc(p.x * canvas.width, p.y * canvas.height, 3, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(255,60,60,0.5)';
-    ctx.fill();
-  }
-}
-
-// ── Init ───────────────────────────────────────────────────────────────────────
-initMediaPipe();
-updateRanges();
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Give CDN scripts a moment then init
+  setTimeout(initMediaPipe, 500);
+  updateRanges();
+});
 </script>
-
-<!-- ESP8266 Arduino code as comment for reference -->
-<!--
-=== PASTE THIS INTO ARDUINO WEB EDITOR ===
-
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <Servo.h>
-
-const char* ssid     = "YOUR_WIFI_NAME";
-const char* password = "YOUR_WIFI_PASSWORD";
-
-Servo servoX, servoY;
-ESP8266WebServer server(80);
-
-void setup() {
-  Serial.begin(115200);
-  servoX.attach(D5);
-  servoY.attach(D6);
-  pinMode(D7, OUTPUT);
-  digitalWrite(D7, HIGH);
-
-  servoX.write(90);
-  servoY.write(45);
-
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting");
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.println("\nIP: " + WiFi.localIP().toString());
-
-  server.on("/ping", []() {
-    server.send(200, "text/plain", "OK");
-  });
-
-  server.on("/move", []() {
-    if (server.hasArg("x")) servoX.write(constrain(server.arg("x").toInt(), 0, 180));
-    if (server.hasArg("y")) servoY.write(constrain(server.arg("y").toInt(), 0, 180));
-    if (server.hasArg("laser")) digitalWrite(D7, server.arg("laser").toInt() ? HIGH : LOW);
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", "OK");
-  });
-
-  server.begin();
-  Serial.println("Server ready");
-}
-
-void loop() {
-  server.handleClient();
-}
-===========================================
--->
 </body>
 </html>
