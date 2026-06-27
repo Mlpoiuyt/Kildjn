@@ -2,623 +2,557 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Laser Turret Control</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laser Sync Control</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
-  body { background: #0a0a0f; color: #e0e0e0; font-family: 'Courier New', monospace; min-height: 100vh; overflow-x: hidden; }
-
-  #header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #0d0d14; border-bottom: 1px solid #1a1a2e; }
-  #header h1 { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #ff3c3c; }
-  #status-dot { width: 10px; height: 10px; border-radius: 50%; background: #333; display: inline-block; margin-right: 8px; transition: background 0.3s; }
-  #status-dot.connected { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
-  #status-dot.tracking  { background: #ff3c3c; box-shadow: 0 0 8px #ff3c3c; }
-  #status-dot.error     { background: #ff8800; }
-  #status-label { font-size: 11px; color: #666; letter-spacing: 1px; }
-
-  #setup-panel { padding: 12px 16px; background: #0d0d14; border-bottom: 1px solid #1a1a2e; }
-  .field-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .field-row label { font-size: 11px; color: #666; letter-spacing: 1px; min-width: 55px; }
-  .field-row input { flex: 1; background: #111120; border: 1px solid #222240; color: #e0e0e0; padding: 7px 10px; font-family: 'Courier New', monospace; font-size: 13px; border-radius: 4px; outline: none; }
-  #connect-btn { width: 100%; padding: 9px; background: #ff3c3c; color: #0a0a0f; border: none; font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; border-radius: 4px; cursor: pointer; }
-  #connect-btn:disabled { opacity: 0.4; }
-
-  #viewport { position: relative; width: 100%; background: #000; }
-  #camera { width: 100%; display: block; transform: scaleX(-1); max-height: 38vh; object-fit: cover; }
-  #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; transform: scaleX(-1); }
-  #loading { position: absolute; inset: 0; background: #0a0a0fdd; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-  #loading .spinner { width: 32px; height: 32px; border: 3px solid #222; border-top-color: #ff3c3c; border-radius: 50%; animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  #loading-text { font-size: 11px; color: #888; letter-spacing: 1px; text-align: center; padding: 0 20px; line-height: 1.6; }
-
-  #infobar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: #1a1a2e; }
-  .info-cell { background: #0d0d14; padding: 8px 4px; text-align: center; }
-  .info-cell .val { font-size: 16px; font-weight: 700; color: #ff3c3c; display: block; line-height: 1; }
-  .info-cell .lbl { font-size: 9px; color: #444; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; display: block; }
-
-  /* ── JOYSTICK PANEL ── */
-  #joy-panel {
-    padding: 14px 16px;
-    background: #0d0d14;
-    border-bottom: 1px solid #1a1a2e;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 14px;
-    align-items: center;
+  :root{
+    --bg:#0c0e14; --panel:#161924; --accent:#ff2d55; --accent2:#00e0ff;
+    --text:#e9ecf1; --muted:#8a90a3;
   }
-
-  #joy-wrap {
-    position: relative;
-    width: 120px;
-    height: 120px;
-    flex-shrink: 0;
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg); color:var(--text); padding:16px; padding-bottom:60px;
   }
-
-  #joy-base {
-    width: 120px; height: 120px;
-    border-radius: 50%;
-    background: #111120;
-    border: 2px solid #222240;
-    position: relative;
-    touch-action: none;
-    user-select: none;
+  h1{font-size:1.3rem; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:0.85rem; margin-bottom:16px;}
+  .status{
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    background:var(--panel); border-radius:10px; margin-bottom:16px; font-size:0.9rem;
   }
-
-  /* crosshair lines on base */
-  #joy-base::before, #joy-base::after {
-    content: '';
-    position: absolute;
-    background: #1a1a2e;
+  .dot{width:10px; height:10px; border-radius:50%; background:#555; flex-shrink:0;}
+  .dot.ok{background:#39d98a;}
+  .dot.bad{background:var(--accent);}
+  .card{
+    background:var(--panel); border-radius:14px; padding:16px; margin-bottom:14px;
   }
-  #joy-base::before { width: 1px; height: 100%; left: 50%; top: 0; }
-  #joy-base::after  { width: 100%; height: 1px; top: 50%; left: 0; }
-
-  #joy-stick {
-    position: absolute;
-    width: 44px; height: 44px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #ff6060, #cc1010);
-    border: 2px solid #ff3c3c;
-    box-shadow: 0 0 12px #ff3c3c66;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    transition: box-shadow 0.1s;
+  .card h2{font-size:0.95rem; margin:0 0 4px; color:var(--accent2);}
+  .card .hint{color:var(--muted); font-size:0.78rem; margin-bottom:12px;}
+  label{display:block; font-size:0.85rem; margin-bottom:6px; color:var(--text);}
+  input[type=file]{
+    width:100%; padding:10px; background:#0c0e14; border:1px solid #2a2e3d;
+    border-radius:8px; color:var(--text); font-size:0.85rem; margin-bottom:4px;
   }
-
-  #joy-stick.active { box-shadow: 0 0 20px #ff3c3c99; }
-
-  .joy-label {
-    position: absolute;
-    font-size: 9px;
-    color: #333;
-    letter-spacing: 1px;
+  .fileok{color:#39d98a; font-size:0.8rem;}
+  .fileerr{color:var(--accent); font-size:0.8rem;}
+  .slider-row{margin-bottom:16px;}
+  .slider-row .val{float:right; color:var(--accent2); font-weight:600;}
+  input[type=range]{
+    width:100%; height:6px; -webkit-appearance:none; background:#2a2e3d;
+    border-radius:3px; outline:none;
   }
-  .joy-label.top    { top: 4px;    left: 50%; transform: translateX(-50%); }
-  .joy-label.bottom { bottom: 4px; left: 50%; transform: translateX(-50%); }
-  .joy-label.left   { left: 4px;   top: 50%;  transform: translateY(-50%); }
-  .joy-label.right  { right: 4px;  top: 50%;  transform: translateY(-50%); }
-
-  #joy-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
+    background:var(--accent2); cursor:pointer; border:2px solid #0c0e14;
   }
-
-  .joy-btn {
-    padding: 10px 8px;
-    border-radius: 5px;
-    border: 1px solid #222240;
-    background: #111120;
-    color: #8888cc;
-    font-family: 'Courier New', monospace;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.15s;
-    text-transform: uppercase;
+  input[type=range].jog::-webkit-slider-thumb{ background:var(--accent); }
+  .btnrow{display:flex; gap:10px; margin-top:6px; flex-wrap:wrap;}
+  button{
+    flex:1; padding:14px; border:none; border-radius:10px; font-size:0.95rem;
+    font-weight:600; cursor:pointer; min-width:120px;
   }
-  .joy-btn:active { transform: scale(0.96); }
-  .joy-btn.snap { border-color: #00ff88; color: #00ff88; background: #00ff8811; }
-  .joy-btn.snap:active { background: #00ff8833; }
-  .joy-btn.center { border-color: #6666cc; color: #6666cc; }
-  .joy-btn.laser-on { border-color: #ff3c3c; color: #ff3c3c; background: #ff3c3c22; }
-
-  #joy-speed-row {
-    display: flex; align-items: center; gap: 8px; margin-top: 4px;
+  button.small{padding:10px; font-size:0.8rem; flex:1 1 45%;}
+  #playBtn{background:var(--accent2); color:#06131a;}
+  #stopBtn{background:#2a2e3d; color:var(--text);}
+  .capbtn{background:#22273a; color:var(--accent2);}
+  .resetbtn{background:#2a2e3d; color:var(--muted);}
+  #playBtn:disabled, #stopBtn:disabled{opacity:0.4; cursor:not-allowed;}
+  .minmax{display:flex; gap:10px;}
+  .minmax .slider-row{flex:1;}
+  .boundsdisplay{
+    background:#0c0e14; border-radius:8px; padding:10px; margin-bottom:14px;
+    font-size:0.8rem; color:var(--muted); display:flex; justify-content:space-between;
   }
-  #joy-speed-row label { font-size: 9px; color: #444; min-width: 40px; letter-spacing: 1px; }
-  #joy-speed-row input { flex: 1; accent-color: #ff3c3c; }
-  #joy-speed-row span  { font-size: 10px; color: #666; min-width: 20px; }
-
-  /* ── CONTROLS ── */
-  #controls { padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .ctrl-card { background: #0d0d14; border: 1px solid #1a1a2e; border-radius: 6px; padding: 10px; }
-  .ctrl-card h3 { font-size: 9px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
-  .slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-  .slider-row label { font-size: 10px; color: #666; min-width: 16px; }
-  .slider-row input[type=range] { flex: 1; accent-color: #ff3c3c; }
-  .slider-row span { font-size: 10px; color: #e0e0e0; min-width: 26px; text-align: right; }
-  #start-btn { grid-column: span 2; padding: 12px; background: #111120; border: 1px solid #333360; color: #8888cc; font-family: 'Courier New', monospace; font-weight: 700; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; border-radius: 4px; cursor: pointer; }
-  #start-btn.active { background: #ff3c3c22; border-color: #ff3c3c; color: #ff3c3c; }
-
-  #log { margin: 0 16px 16px; background: #0d0d14; border: 1px solid #1a1a2e; border-radius: 6px; padding: 8px; font-size: 10px; color: #444; height: 65px; overflow-y: auto; line-height: 1.7; }
-  #log .ok  { color: #00ff88; }
-  #log .err { color: #ff8800; }
-  #log .inf { color: #6666cc; }
+  .boundsdisplay b{color:var(--accent2);}
+  .sourcegrid{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;}
+  .srcbtn{
+    flex:1 1 28%; padding:10px 6px; border-radius:10px; border:1px solid #2a2e3d;
+    background:#0c0e14; color:var(--muted); font-size:0.8rem; font-weight:600;
+    cursor:pointer; text-align:center;
+  }
+  .srcbtn.active{background:var(--accent2); color:#06131a; border-color:var(--accent2);}
+  .srcbtn:disabled{opacity:0.3; cursor:not-allowed;}
+  #log{
+    font-size:0.75rem; color:var(--muted); max-height:90px; overflow-y:auto;
+    background:#0c0e14; border-radius:8px; padding:8px; white-space:pre-wrap;
+  }
+  hr.div{border:none; border-top:1px solid #2a2e3d; margin:16px 0;}
 </style>
 </head>
 <body>
 
-<div id="header">
-  <h1>⬡ Laser Turret</h1>
-  <div><span id="status-dot"></span><span id="status-label">OFFLINE</span></div>
+<h1>🎆 Laser Sync Control</h1>
+<div class="sub">MG90S pan/tilt laser rig — ESP8266</div>
+
+<div class="status">
+  <div class="dot" id="dot"></div>
+  <span id="statusText">Connecting to ESP8266…</span>
 </div>
 
-<div id="setup-panel">
-  <div class="field-row">
-    <label>ESP IP</label>
-    <input id="esp-ip" type="text" placeholder="192.168.1.xxx" value="192.168.1.100">
-  </div>
-  <div class="field-row">
-    <label>PORT</label>
-    <input id="esp-port" type="number" value="80">
-  </div>
-  <button id="connect-btn" onclick="testConnection()">Test Connection</button>
+<div class="card">
+  <h2>1. Beatmap JSON</h2>
+  <div class="hint">Upload your preprocessed beatmap (.json)</div>
+  <input type="file" id="beatmapFile" accept=".json,application/json">
+  <div id="beatmapStatus" class="fileerr">No beatmap loaded</div>
 </div>
 
-<div id="viewport">
-  <video id="camera" autoplay playsinline muted></video>
-  <canvas id="overlay"></canvas>
-  <div id="loading">
-    <div class="spinner"></div>
-    <div id="loading-text">LOADING HAND TRACKING…<br>Please wait ~15 seconds</div>
-  </div>
+<div class="card">
+  <h2>2. Audio Track</h2>
+  <div class="hint">Upload the matching song (.mp3 / .wav)</div>
+  <input type="file" id="audioFile" accept="audio/*">
+  <div id="audioStatus" class="fileerr">No audio loaded</div>
+  <audio id="audioPlayer" style="width:100%; margin-top:8px; display:none;" controls></audio>
 </div>
 
-<div id="infobar">
-  <div class="info-cell"><span class="val" id="val-sx">90</span><span class="lbl">Servo X°</span></div>
-  <div class="info-cell"><span class="val" id="val-sy">45</span><span class="lbl">Servo Y°</span></div>
-  <div class="info-cell"><span class="val" id="val-fps">0</span><span class="lbl">FPS</span></div>
-  <div class="info-cell"><span class="val" id="val-sent">0</span><span class="lbl">Sent</span></div>
-</div>
-
-<!-- JOYSTICK PANEL -->
-<div id="joy-panel">
-  <div id="joy-wrap">
-    <div id="joy-base">
-      <span class="joy-label top">UP</span>
-      <span class="joy-label bottom">DN</span>
-      <span class="joy-label left">L</span>
-      <span class="joy-label right">R</span>
-      <div id="joy-stick"></div>
-    </div>
-    <div id="joy-speed-row">
-      <label>SPEED</label>
-      <input type="range" id="joy-speed" min="1" max="10" value="4" oninput="document.getElementById('lbl-speed').textContent=this.value">
-      <span id="lbl-speed">4</span>
-    </div>
-  </div>
-
-  <div id="joy-buttons">
-    <button class="joy-btn snap" onclick="snapToHand()">📍 SNAP TO HAND</button>
-    <button class="joy-btn center" onclick="centerServos()">⊕ CENTER</button>
-    <button class="joy-btn laser-on" id="laser-toggle" onclick="toggleLaser()">🔴 LASER ON</button>
-    <select id="finger-select" style="background:#111120;border:1px solid #222240;color:#8888cc;padding:7px;font-family:monospace;font-size:10px;border-radius:4px;width:100%;">
-      <option value="8">Index tip</option>
-      <option value="4">Thumb tip</option>
-      <option value="12">Middle tip</option>
-      <option value="0">Palm base</option>
-    </select>
+<div class="card">
+  <h2>3. Instrument Sync Source</h2>
+  <div class="hint">Pick which part of the mix drives the laser. Only appears if your beatmap contains that stem.</div>
+  <div class="sourcegrid" id="sourceGrid">
+    <button class="srcbtn active" data-src="all" disabled>All / Mix</button>
+    <button class="srcbtn" data-src="drums" disabled>Drums</button>
+    <button class="srcbtn" data-src="bass" disabled>Bass</button>
+    <button class="srcbtn" data-src="vocals" disabled>Vocals</button>
+    <button class="srcbtn" data-src="other" disabled>Other</button>
   </div>
 </div>
 
-<div id="controls">
-  <div class="ctrl-card">
-    <h3>Servo Range</h3>
-    <div class="slider-row">
-      <label>X</label>
-      <input type="range" id="range-x" min="10" max="170" value="170" oninput="updateRanges()">
-      <span id="lbl-rx">170°</span>
-    </div>
-    <div class="slider-row">
-      <label>Y</label>
-      <input type="range" id="range-y" min="10" max="90" value="60" oninput="updateRanges()">
-      <span id="lbl-ry">60°</span>
-    </div>
+<div class="card">
+  <h2>4. Wall Boundary Calibration</h2>
+  <div class="hint">Jog the real laser to each edge of your wall, then lock that position in. This keeps the laser confined to one wall instead of sweeping onto others.</div>
+
+  <div class="boundsdisplay">
+    <span>Pan: <b id="panBoundsTxt">0°–180°</b></span>
+    <span>Tilt: <b id="tiltBoundsTxt">0°–180°</b></span>
   </div>
-  <div class="ctrl-card">
-    <h3>Tracking</h3>
-    <div class="slider-row">
-      <label>Smooth</label>
-      <input type="range" id="smooth" min="1" max="10" value="4" oninput="updateSmooth()">
-      <span id="lbl-sm">4</span>
-    </div>
-    <div class="slider-row">
-      <label>Speed</label>
-      <input type="range" id="send-rate" min="1" max="10" value="5" oninput="updateSendRate()">
-      <span id="lbl-sr">5</span>
-    </div>
+
+  <div class="slider-row">
+    <label>Jog Pan (live) <span class="val" id="jogPanVal">90°</span></label>
+    <input type="range" class="jog" id="jogPan" min="0" max="180" step="1" value="90">
   </div>
-  <button id="start-btn" onclick="toggleTracking()">▶ START TRACKING</button>
+  <div class="btnrow">
+    <button class="small capbtn" id="setPanMin">Lock as Pan MIN (left edge)</button>
+    <button class="small capbtn" id="setPanMax">Lock as Pan MAX (right edge)</button>
+  </div>
+
+  <hr class="div">
+
+  <div class="slider-row">
+    <label>Jog Tilt (live) <span class="val" id="jogTiltVal">90°</span></label>
+    <input type="range" class="jog" id="jogTilt" min="0" max="180" step="1" value="90">
+  </div>
+  <div class="btnrow">
+    <button class="small capbtn" id="setTiltMin">Lock as Tilt MIN (top edge)</button>
+    <button class="small capbtn" id="setTiltMax">Lock as Tilt MAX (bottom edge)</button>
+  </div>
+
+  <div class="btnrow" style="margin-top:14px;">
+    <button class="resetbtn" id="resetBounds">Reset boundaries to full 0°–180°</button>
+  </div>
 </div>
 
-<div id="log"></div>
+<div class="card">
+  <h2>5. Tuning</h2>
 
-<script type="module">
-import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+  <div class="slider-row">
+    <label>Sync Offset <span class="val" id="syncOffsetVal">0 ms</span></label>
+    <input type="range" id="syncOffset" min="-500" max="500" step="5" value="0">
+  </div>
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let handLandmarker = null;
-let tracking = false;
-let laserOn = true;
-let connected = false;
-let smoothX = 90, smoothY = 45;
-let currentX = 90, currentY = 45;  // actual servo position
-let smoothFactor = 0.4;
-let sentCount = 0;
-let lastSendTime = 0;
-let sendInterval = 50;
-let rangeX = 170, rangeY = 60;
-let frameCount = 0, lastFpsTime = Date.now();
-let animId = null;
-let lastHandPos = null; // stores last seen hand position for snap
+  <div class="slider-row">
+    <label>Energy Threshold <span class="val" id="energyThresholdVal">0.30</span></label>
+    <input type="range" id="energyThreshold" min="0" max="1" step="0.01" value="0.30">
+  </div>
 
-// Joystick
-let joyActive = false;
-let joyDX = 0, joyDY = 0;
-let joyInterval = null;
+  <div class="slider-row">
+    <label>Delay <span class="val" id="delayVal">0 ms</span></label>
+    <input type="range" id="delay" min="0" max="2000" step="10" value="0">
+  </div>
+</div>
 
-const video  = document.getElementById('camera');
-const canvas = document.getElementById('overlay');
-const ctx    = canvas.getContext('2d');
-const joyBase  = document.getElementById('joy-base');
-const joyStick = document.getElementById('joy-stick');
+<div class="card">
+  <h2>6. Run</h2>
+  <div class="btnrow">
+    <button id="playBtn" disabled>▶ Play & Sync</button>
+    <button id="stopBtn" disabled>■ Stop / Center</button>
+  </div>
+</div>
 
-// ── Log ───────────────────────────────────────────────────────────────────────
-function log(msg, type='inf') {
-  const el = document.getElementById('log');
-  const d = document.createElement('div');
-  d.className = type;
-  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-  el.appendChild(d);
-  el.scrollTop = el.scrollHeight;
-  if (el.children.length > 60) el.removeChild(el.firstChild);
-}
+<div class="card">
+  <h2>Log</h2>
+  <div id="log"></div>
+</div>
 
-function setStatus(cls, label) {
-  document.getElementById('status-dot').className = cls;
-  document.getElementById('status-label').textContent = label;
-}
+<script>
+(function(){
+  "use strict";
 
-function updateServoDisplay(x, y) {
-  document.getElementById('val-sx').textContent = x;
-  document.getElementById('val-sy').textContent = y;
-}
+  // ---------- Config ----------
+  const WS_HOST = (location.hostname && location.hostname !== "") ? location.hostname : "192.168.4.1";
+  const WS_URL = "ws://" + WS_HOST + "/ws";
 
-// ── UI ────────────────────────────────────────────────────────────────────────
-window.updateRanges = () => {
-  rangeX = +document.getElementById('range-x').value;
-  rangeY = +document.getElementById('range-y').value;
-  document.getElementById('lbl-rx').textContent = rangeX + '°';
-  document.getElementById('lbl-ry').textContent = rangeY + '°';
-};
+  let ws = null;
+  let wsReady = false;
+  let reconnectTimer = null;
 
-window.updateSmooth = () => {
-  const v = +document.getElementById('smooth').value;
-  document.getElementById('lbl-sm').textContent = v;
-  smoothFactor = v / 10;
-};
+  let beatmap = null;       // { events: [{time, all/drums/bass/vocals/other...}, ...] } sorted by time
+  let eventIndex = 0;
+  let rafId = null;
+  let isPlaying = false;
 
-window.updateSendRate = () => {
-  const v = +document.getElementById('send-rate').value;
-  document.getElementById('lbl-sr').textContent = v;
-  sendInterval = Math.round(200 / v);
-};
+  const state = {
+    syncOffset: 0,
+    energyThreshold: 0.30,
+    delay: 0,
+    panMin: 0, panMax: 180,
+    tiltMin: 0, tiltMax: 180,
+    source: "all"
+  };
 
-window.toggleLaser = () => {
-  laserOn = !laserOn;
-  const btn = document.getElementById('laser-toggle');
-  btn.textContent = laserOn ? '🔴 LASER ON' : '⚫ LASER OFF';
-  btn.className = laserOn ? 'joy-btn laser-on' : 'joy-btn';
-  sendCmd(currentX, currentY, laserOn, true);
-};
-
-window.centerServos = () => {
-  currentX = 90; currentY = 45;
-  smoothX = 90; smoothY = 45;
-  updateServoDisplay(90, 45);
-  sendCmd(90, 45, laserOn, true);
-  log('Servos centered to 90°/45°', 'ok');
-};
-
-// SNAP TO HAND — instantly moves laser to where hand is right now
-window.snapToHand = () => {
-  if (!lastHandPos) {
-    log('No hand detected yet — start tracking first', 'err');
-    return;
+  // ---------- Logging ----------
+  const logEl = document.getElementById("log");
+  function log(msg){
+    const t = new Date().toLocaleTimeString();
+    logEl.textContent = "[" + t + "] " + msg + "\n" + logEl.textContent;
   }
-  const idx = +document.getElementById('finger-select').value;
-  const tip = lastHandPos[idx];
-  if (!tip) return;
 
-  const tx = (1 - tip.x) * rangeX;
-  const ty = tip.y * rangeY + (90 - rangeY / 2);
-  const sx = Math.round(Math.max(0, Math.min(180, tx)));
-  const sy = Math.round(Math.max(0, Math.min(180, ty)));
+  // ---------- WebSocket ----------
+  function connectWS(){
+    try{
+      ws = new WebSocket(WS_URL);
+    }catch(e){
+      setStatus(false, "WebSocket error — retrying…");
+      scheduleReconnect();
+      return;
+    }
 
-  currentX = sx; currentY = sy;
-  smoothX = sx; smoothY = sy;
-  updateServoDisplay(sx, sy);
-  sendCmd(sx, sy, laserOn, true);
-  log(`Snapped to hand: X=${sx}° Y=${sy}°`, 'ok');
-};
+    ws.onopen = function(){
+      wsReady = true;
+      setStatus(true, "Connected to laser rig");
+      sendConfig();
+      checkReady();
+    };
+    ws.onclose = function(){
+      wsReady = false;
+      setStatus(false, "Disconnected — reconnecting…");
+      checkReady();
+      scheduleReconnect();
+    };
+    ws.onerror = function(){
+      wsReady = false;
+    };
+    ws.onmessage = function(evt){
+      log("ESP: " + evt.data);
+    };
+  }
 
-// ── Connection ────────────────────────────────────────────────────────────────
-function baseUrl() {
-  const ip = document.getElementById('esp-ip').value.trim();
-  const p  = document.getElementById('esp-port').value.trim();
-  return `http://${ip}:${p}`;
-}
+  function scheduleReconnect(){
+    if(reconnectTimer) return;
+    reconnectTimer = setTimeout(function(){
+      reconnectTimer = null;
+      connectWS();
+    }, 1500);
+  }
 
-window.testConnection = async () => {
-  const btn = document.getElementById('connect-btn');
-  btn.disabled = true; btn.textContent = 'TESTING…';
-  log('Testing ESP32…');
-  try {
-    await fetch(baseUrl() + '/ping', { signal: AbortSignal.timeout(3000) });
-    connected = true; setStatus('connected','CONNECTED');
-    log('ESP32 connected!', 'ok'); btn.textContent = '✓ CONNECTED';
-  } catch {
-    try {
-      await fetch(baseUrl() + '/move?x=90&y=45&laser=1', { signal: AbortSignal.timeout(3000) });
-      connected = true; setStatus('connected','CONNECTED');
-      log('ESP32 connected!', 'ok'); btn.textContent = '✓ CONNECTED';
-    } catch(e) {
-      connected = false; setStatus('error','NO RESPONSE');
-      log('Cannot reach ESP32', 'err'); btn.textContent = 'RETRY';
+  function setStatus(ok, text){
+    document.getElementById("dot").className = "dot " + (ok ? "ok" : "bad");
+    document.getElementById("statusText").textContent = text;
+  }
+
+  function wsSend(obj){
+    if(ws && wsReady && ws.readyState === WebSocket.OPEN){
+      try{ ws.send(JSON.stringify(obj)); }
+      catch(e){ log("Send failed: " + e.message); }
     }
   }
-  btn.disabled = false;
-};
 
-let sendPending = false;
-async function sendCmd(x, y, laser, force=false) {
-  if (!connected) return;
-  const now = Date.now();
-  if (!force && (now - lastSendTime < sendInterval)) return;
-  if (sendPending && !force) return;
-  lastSendTime = now;
-  sendPending = true;
-  try {
-    await fetch(`${baseUrl()}/move?x=${x}&y=${y}&laser=${laser?1:0}`, { signal: AbortSignal.timeout(300) });
-    sentCount++;
-    document.getElementById('val-sent').textContent = sentCount;
-  } catch {}
-  sendPending = false;
-}
-
-// ── JOYSTICK ─────────────────────────────────────────────────────────────────
-const JOY_RADIUS = 60;
-const STICK_RADIUS = 22;
-
-function getJoyOffset(e, el) {
-  const rect = el.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top  + rect.height / 2;
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  let dx = clientX - cx;
-  let dy = clientY - cy;
-  const dist = Math.sqrt(dx*dx + dy*dy);
-  if (dist > JOY_RADIUS) {
-    dx = dx / dist * JOY_RADIUS;
-    dy = dy / dist * JOY_RADIUS;
-  }
-  return { dx, dy };
-}
-
-function moveStick(dx, dy) {
-  joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-  joyDX = dx / JOY_RADIUS;
-  joyDY = dy / JOY_RADIUS;
-}
-
-function startJoy(e) {
-  e.preventDefault();
-  joyActive = true;
-  joyStick.classList.add('active');
-  const { dx, dy } = getJoyOffset(e, joyBase);
-  moveStick(dx, dy);
-}
-
-function moveJoy(e) {
-  if (!joyActive) return;
-  e.preventDefault();
-  const { dx, dy } = getJoyOffset(e, joyBase);
-  moveStick(dx, dy);
-}
-
-function endJoy(e) {
-  joyActive = false;
-  joyStick.classList.remove('active');
-  joyStick.style.transform = 'translate(-50%, -50%)';
-  joyDX = 0; joyDY = 0;
-}
-
-joyBase.addEventListener('touchstart', startJoy, { passive: false });
-joyBase.addEventListener('touchmove',  moveJoy,  { passive: false });
-joyBase.addEventListener('touchend',   endJoy);
-joyBase.addEventListener('mousedown',  startJoy);
-joyBase.addEventListener('mousemove',  moveJoy);
-joyBase.addEventListener('mouseup',    endJoy);
-joyBase.addEventListener('mouseleave', endJoy);
-
-// Joystick tick — updates servo position based on stick deflection
-joyInterval = setInterval(() => {
-  if (!joyActive || (joyDX === 0 && joyDY === 0)) return;
-  const speed = +document.getElementById('joy-speed').value * 0.8;
-  currentX = Math.max(0, Math.min(180, currentX + joyDX * speed));
-  currentY = Math.max(0, Math.min(180, currentY + joyDY * speed));
-  smoothX = currentX;
-  smoothY = currentY;
-  const sx = Math.round(currentX);
-  const sy = Math.round(currentY);
-  updateServoDisplay(sx, sy);
-  sendCmd(sx, sy, laserOn);
-}, 40);
-
-// ── MediaPipe ────────────────────────────────────────────────────────────────
-async function initMP() {
-  log('Loading MediaPipe…');
-  try {
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-    );
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-        delegate: "GPU"
-      },
-      runningMode: "VIDEO",
-      numHands: 1
+  function sendConfig(){
+    wsSend({
+      cmd: "config",
+      syncOffset: state.syncOffset,
+      energyThreshold: state.energyThreshold,
+      delay: state.delay,
+      panMinAngle: state.panMin,
+      panMaxAngle: state.panMax,
+      tiltMinAngle: state.tiltMin,
+      tiltMaxAngle: state.tiltMax
     });
-    document.getElementById('loading').style.display = 'none';
-    log('Hand tracking ready ✓', 'ok');
-  } catch(e) {
-    try {
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-      );
-      handLandmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-          delegate: "CPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 1
-      });
-      document.getElementById('loading').style.display = 'none';
-      log('Hand tracking ready (CPU) ✓', 'ok');
-    } catch(e2) {
-      document.getElementById('loading-text').textContent = 'FAILED: ' + e2.message;
-      document.querySelector('.spinner').style.display = 'none';
-      log('MediaPipe failed: ' + e2.message, 'err');
+  }
+
+  connectWS();
+
+  // ---------- Tuning sliders ----------
+  function bindSlider(id, fmt, key, isFloat){
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(id + "Val");
+    el.addEventListener("input", function(){
+      const v = isFloat ? parseFloat(el.value) : parseInt(el.value, 10);
+      state[key] = v;
+      valEl.textContent = fmt(v);
+      sendConfig();
+    });
+  }
+  bindSlider("syncOffset", v => v + " ms", "syncOffset", false);
+  bindSlider("energyThreshold", v => v.toFixed(2), "energyThreshold", true);
+  bindSlider("delay", v => v + " ms", "delay", false);
+
+  // ---------- Boundary calibration ----------
+  const jogPan = document.getElementById("jogPan");
+  const jogTilt = document.getElementById("jogTilt");
+  const jogPanVal = document.getElementById("jogPanVal");
+  const jogTiltVal = document.getElementById("jogTiltVal");
+  const panBoundsTxt = document.getElementById("panBoundsTxt");
+  const tiltBoundsTxt = document.getElementById("tiltBoundsTxt");
+
+  function updateBoundsDisplay(){
+    panBoundsTxt.textContent = state.panMin + "\u00b0\u2013" + state.panMax + "\u00b0";
+    tiltBoundsTxt.textContent = state.tiltMin + "\u00b0\u2013" + state.tiltMax + "\u00b0";
+  }
+
+  function sendJog(){
+    // energy:1 guarantees this always passes the threshold gate, so jogging
+    // always works regardless of the Energy Threshold slider's position.
+    wsSend({ cmd: "move", energy: 1, pan: parseInt(jogPan.value,10), tilt: parseInt(jogTilt.value,10) });
+  }
+
+  jogPan.addEventListener("input", function(){
+    jogPanVal.textContent = jogPan.value + "\u00b0";
+    if(!isPlaying) sendJog();
+  });
+  jogTilt.addEventListener("input", function(){
+    jogTiltVal.textContent = jogTilt.value + "\u00b0";
+    if(!isPlaying) sendJog();
+  });
+
+  document.getElementById("setPanMin").addEventListener("click", function(){
+    let v = parseInt(jogPan.value, 10);
+    if(v >= state.panMax) v = state.panMax - 1; // never let min cross max
+    state.panMin = v;
+    updateBoundsDisplay(); sendConfig();
+    log("Pan MIN locked at " + v + " deg");
+  });
+  document.getElementById("setPanMax").addEventListener("click", function(){
+    let v = parseInt(jogPan.value, 10);
+    if(v <= state.panMin) v = state.panMin + 1;
+    state.panMax = v;
+    updateBoundsDisplay(); sendConfig();
+    log("Pan MAX locked at " + v + " deg");
+  });
+  document.getElementById("setTiltMin").addEventListener("click", function(){
+    let v = parseInt(jogTilt.value, 10);
+    if(v >= state.tiltMax) v = state.tiltMax - 1;
+    state.tiltMin = v;
+    updateBoundsDisplay(); sendConfig();
+    log("Tilt MIN locked at " + v + " deg");
+  });
+  document.getElementById("setTiltMax").addEventListener("click", function(){
+    let v = parseInt(jogTilt.value, 10);
+    if(v <= state.tiltMin) v = state.tiltMin + 1;
+    state.tiltMax = v;
+    updateBoundsDisplay(); sendConfig();
+    log("Tilt MAX locked at " + v + " deg");
+  });
+  document.getElementById("resetBounds").addEventListener("click", function(){
+    state.panMin = 0; state.panMax = 180;
+    state.tiltMin = 0; state.tiltMax = 180;
+    updateBoundsDisplay(); sendConfig();
+    log("Boundaries reset to full range");
+  });
+
+  updateBoundsDisplay();
+
+  // ---------- Instrument source selector ----------
+  const sourceGrid = document.getElementById("sourceGrid");
+  function setAvailableSources(channelsFound){
+    const buttons = sourceGrid.querySelectorAll(".srcbtn");
+    buttons.forEach(btn => {
+      const src = btn.getAttribute("data-src");
+      btn.disabled = !channelsFound.has(src);
+    });
+    let defaultSrc = channelsFound.has("all") ? "all" : Array.from(channelsFound)[0];
+    selectSource(defaultSrc);
+  }
+  function selectSource(src){
+    if(!src) return;
+    state.source = src;
+    sourceGrid.querySelectorAll(".srcbtn").forEach(btn => {
+      btn.classList.toggle("active", btn.getAttribute("data-src") === src);
+    });
+    log("Sync source: " + src);
+  }
+  sourceGrid.querySelectorAll(".srcbtn").forEach(btn => {
+    btn.addEventListener("click", function(){
+      if(btn.disabled) return;
+      selectSource(btn.getAttribute("data-src"));
+    });
+  });
+
+  // ---------- Beatmap upload ----------
+  const beatmapStatus = document.getElementById("beatmapStatus");
+  document.getElementById("beatmapFile").addEventListener("change", function(e){
+    const file = e.target.files[0];
+    if(!file){ return; }
+    const reader = new FileReader();
+    reader.onload = function(){
+      try{
+        const parsed = JSON.parse(reader.result);
+        if(!parsed || !Array.isArray(parsed.events)){
+          throw new Error("JSON must have an 'events' array");
+        }
+
+        const channelsFound = new Set();
+        const cleanEvents = [];
+
+        for(const ev of parsed.events){
+          if(!ev || typeof ev.time !== "number") continue;
+          const clean = { time: ev.time };
+
+          // Back-compat: old single-channel files use "energy" -> treat as "all"
+          if(typeof ev.all === "number"){
+            clean.all = Math.max(0, Math.min(1, ev.all));
+            channelsFound.add("all");
+          } else if(typeof ev.energy === "number"){
+            clean.all = Math.max(0, Math.min(1, ev.energy));
+            channelsFound.add("all");
+          }
+
+          for(const ch of ["drums","bass","vocals","other"]){
+            if(typeof ev[ch] === "number"){
+              clean[ch] = Math.max(0, Math.min(1, ev[ch]));
+              channelsFound.add(ch);
+            }
+          }
+
+          if(Object.keys(clean).length > 1){
+            cleanEvents.push(clean);
+          }
+        }
+
+        cleanEvents.sort((a,b) => a.time - b.time);
+
+        if(cleanEvents.length === 0){
+          throw new Error("No valid events found in file");
+        }
+        if(channelsFound.size === 0){
+          throw new Error("No recognized channels (all/drums/bass/vocals/other)");
+        }
+
+        beatmap = { events: cleanEvents };
+        beatmapStatus.textContent = "Loaded " + cleanEvents.length + " events (channels: " + Array.from(channelsFound).join(", ") + ")";
+        beatmapStatus.className = "fileok";
+        log("Beatmap loaded: " + cleanEvents.length + " events, channels: " + Array.from(channelsFound).join(", "));
+
+        setAvailableSources(channelsFound);
+      }catch(err){
+        beatmap = null;
+        beatmapStatus.textContent = "Invalid JSON: " + err.message;
+        beatmapStatus.className = "fileerr";
+        log("Beatmap load failed: " + err.message);
+      }
+      checkReady();
+    };
+    reader.onerror = function(){
+      beatmapStatus.textContent = "Could not read file";
+      beatmapStatus.className = "fileerr";
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- Audio upload ----------
+  const audioStatus = document.getElementById("audioStatus");
+  const audioPlayer = document.getElementById("audioPlayer");
+  let audioObjectUrl = null;
+
+  document.getElementById("audioFile").addEventListener("change", function(e){
+    const file = e.target.files[0];
+    if(!file){ return; }
+    if(audioObjectUrl){ URL.revokeObjectURL(audioObjectUrl); }
+    audioObjectUrl = URL.createObjectURL(file);
+    audioPlayer.src = audioObjectUrl;
+    audioPlayer.style.display = "block";
+    audioStatus.textContent = "Loaded: " + file.name;
+    audioStatus.className = "fileok";
+    log("Audio loaded: " + file.name);
+    checkReady();
+  });
+
+  audioPlayer.addEventListener("ended", function(){
+    stopPlayback();
+  });
+
+  // ---------- Ready check ----------
+  function checkReady(){
+    const ready = !!beatmap && !!audioPlayer.src && wsReady;
+    document.getElementById("playBtn").disabled = !ready;
+    document.getElementById("stopBtn").disabled = !wsReady;
+  }
+
+  // ---------- Playback / sync loop ----------
+  function getEnergy(ev){
+    const v = ev[state.source];
+    return (typeof v === "number") ? v : 0;
+  }
+
+  function tick(){
+    if(audioPlayer.paused || audioPlayer.ended){
+      rafId = null;
+      return;
     }
-  }
-}
 
-// ── Tracking ──────────────────────────────────────────────────────────────────
-window.toggleTracking = async () => {
-  const btn = document.getElementById('start-btn');
-  if (!tracking) {
-    if (!handLandmarker) { log('Still loading…', 'err'); return; }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
-      });
-      video.srcObject = stream;
-      await new Promise(r => video.onloadedmetadata = r);
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      tracking = true;
-      btn.textContent = '■ STOP TRACKING';
-      btn.className = 'active';
-      setStatus('tracking','TRACKING');
-      log('Tracking started — use SNAP TO HAND to align laser', 'ok');
-      processFrame();
-    } catch(e) { log('Camera: ' + e.message, 'err'); }
-  } else {
-    tracking = false;
-    if (animId) cancelAnimationFrame(animId);
-    if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    lastHandPos = null;
-    btn.textContent = '▶ START TRACKING';
-    btn.className = '';
-    setStatus(connected ? 'connected' : '', connected ? 'CONNECTED' : 'OFFLINE');
-  }
-};
+    const playheadMs = audioPlayer.currentTime * 1000 + state.syncOffset;
 
-const CONN = [
-  [0,1],[1,2],[2,3],[3,4],
-  [0,5],[5,6],[6,7],[7,8],
-  [5,9],[9,10],[10,11],[11,12],
-  [9,13],[13,14],[14,15],[15,16],
-  [13,17],[17,18],[18,19],[19,20],[0,17]
-];
+    while(eventIndex < beatmap.events.length && beatmap.events[eventIndex].time <= playheadMs){
+      const ev = beatmap.events[eventIndex];
+      eventIndex++;
 
-let lastVideoTime = -1;
+      const energy = getEnergy(ev);
+      if(energy >= state.energyThreshold){
+        const tiltRange = state.tiltMax - state.tiltMin;
+        const tilt = Math.round(state.tiltMin + tiltRange * energy);
 
-function processFrame() {
-  if (!tracking) return;
-  animId = requestAnimationFrame(processFrame);
-  if (video.readyState < 2 || video.currentTime === lastVideoTime) return;
-  lastVideoTime = video.currentTime;
+        const sweepPhase = (audioPlayer.currentTime * 1.3) % (2 * Math.PI);
+        const panRange = state.panMax - state.panMin;
+        const pan = Math.round(state.panMin + panRange * (0.5 + 0.5 * Math.sin(sweepPhase)));
 
-  const results = handLandmarker.detectForVideo(video, Date.now());
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const sendIt = function(){
+          wsSend({ cmd: "move", energy: energy, pan: pan, tilt: tilt });
+        };
 
-  frameCount++;
-  const now = Date.now();
-  if (now - lastFpsTime >= 1000) {
-    document.getElementById('val-fps').textContent = frameCount;
-    frameCount = 0; lastFpsTime = now;
+        if(state.delay > 0){
+          setTimeout(sendIt, state.delay);
+        }else{
+          sendIt();
+        }
+      }
+    }
+
+    rafId = requestAnimationFrame(tick);
   }
 
-  if (!results.landmarks || results.landmarks.length === 0) {
-    lastHandPos = null;
-    return;
+  document.getElementById("playBtn").addEventListener("click", function(){
+    if(!beatmap || !audioPlayer.src){ return; }
+    eventIndex = 0;
+    audioPlayer.currentTime = 0;
+    audioPlayer.play().then(function(){
+      isPlaying = true;
+      log("Playback started (source: " + state.source + ")");
+      if(rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(tick);
+    }).catch(function(err){
+      log("Playback blocked: " + err.message + " (tap play again)");
+    });
+  });
+
+  document.getElementById("stopBtn").addEventListener("click", stopPlayback);
+
+  function stopPlayback(){
+    isPlaying = false;
+    audioPlayer.pause();
+    if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
+    wsSend({ cmd: "center" });
+    log("Stopped, servos centered");
   }
 
-  const lm  = results.landmarks[0];
-  lastHandPos = lm; // always save latest position for snap
-  const idx = +document.getElementById('finger-select').value;
-  const tip = lm[idx];
-
-  // Draw skeleton
-  ctx.strokeStyle = 'rgba(255,60,60,0.4)';
-  ctx.lineWidth = 1.5;
-  for (const [a,b] of CONN) {
-    ctx.beginPath();
-    ctx.moveTo(lm[a].x * canvas.width, lm[a].y * canvas.height);
-    ctx.lineTo(lm[b].x * canvas.width, lm[b].y * canvas.height);
-    ctx.stroke();
-  }
-  for (const p of lm) {
-    ctx.beginPath();
-    ctx.arc(p.x*canvas.width, p.y*canvas.height, 3, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(255,60,60,0.6)'; ctx.fill();
-  }
-
-  // Target circle
-  const px = tip.x * canvas.width;
-  const py = tip.y * canvas.height;
-  ctx.beginPath(); ctx.arc(px, py, 12, 0, Math.PI*2);
-  ctx.strokeStyle = '#ff3c3c'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2);
-  ctx.fillStyle = '#ff3c3c'; ctx.fill();
-
-  // Only track if joystick is NOT being used
-  if (!joyActive) {
-    const tx = (1 - tip.x) * rangeX;
-    const ty = tip.y * rangeY + (90 - rangeY / 2);
-    smoothX += (tx - smoothX) * smoothFactor;
-    smoothY += (ty - smoothY) * smoothFactor;
-    currentX = smoothX;
-    currentY = smoothY;
-    const sx = Math.round(Math.max(0, Math.min(180, smoothX)));
-    const sy = Math.round(Math.max(0, Math.min(180, smoothY)));
-    updateServoDisplay(sx, sy);
-    sendCmd(sx, sy, laserOn);
-  }
-}
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
-window.updateRanges();
-initMP();
+})();
 </script>
 </body>
 </html>
